@@ -33,6 +33,8 @@ export default function QuizPage() {
   const [showExplanation, setShowExplanation] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [startTime, setStartTime] = useState<number>(Date.now());
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
 
   const router = useRouter();
   const params = useParams();
@@ -42,10 +44,21 @@ export default function QuizPage() {
     fetchQuiz();
   }, [quizId]);
 
+  // Timer
+  useEffect(() => {
+    if (!quizCompleted && !loading) {
+      const interval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [startTime, quizCompleted, loading]);
+
   const fetchQuiz = async () => {
     try {
       const res = await axios.get(`/api/quizzes/${quizId}`);
       setQuiz(res.data.quiz);
+      setStartTime(Date.now());
     } catch (error) {
       console.error('Error fetching quiz:', error);
       alert('Failed to load quiz');
@@ -53,6 +66,12 @@ export default function QuizPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const currentQuestion = quiz?.questions[currentQuestionIndex];
@@ -87,12 +106,10 @@ export default function QuizPage() {
     if (type === 'mcq') {
       return userAns.trim().toLowerCase() === correctAns.trim().toLowerCase();
     } else {
-      // For SAQ and LAQ, we'll use simple keyword matching
-      // In production, you'd use AI to evaluate
       const userWords = userAns.toLowerCase().split(' ');
       const correctWords = correctAns.toLowerCase().split(' ');
       const matchCount = userWords.filter(word => correctWords.includes(word)).length;
-      return matchCount >= correctWords.length * 0.5; // 50% keyword match
+      return matchCount >= correctWords.length * 0.5;
     }
   };
 
@@ -102,7 +119,6 @@ export default function QuizPage() {
       setCurrentAnswer('');
       setShowExplanation(false);
     } else {
-      // Quiz completed
       setQuizCompleted(true);
     }
   };
@@ -115,15 +131,16 @@ export default function QuizPage() {
       
       const totalMarks = quiz.questions.reduce((sum: number, q: Question) => sum + q.marks, 0);
       const earnedMarks = userAnswers.reduce((sum, ans) => sum + ans.earnedMarks, 0);
+      const timeTaken = Math.floor((Date.now() - startTime) / 1000);
 
       await axios.post(`/api/quizzes/${quizId}/submit`, {
         userId,
         answers: userAnswers,
         totalMarks,
         earnedMarks,
+        timeTaken,
       });
 
-      alert(`Quiz Completed!\n\nYour Score: ${earnedMarks}/${totalMarks}\nPercentage: ${((earnedMarks / totalMarks) * 100).toFixed(2)}%`);
       router.push('/progress');
       
     } catch (error) {
@@ -154,7 +171,7 @@ export default function QuizPage() {
     const totalMarks = quiz.questions.reduce((sum: number, q: Question) => sum + q.marks, 0);
     const earnedMarks = userAnswers.reduce((sum, ans) => sum + ans.earnedMarks, 0);
     const percentage = ((earnedMarks / totalMarks) * 100).toFixed(2);
-  
+
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
@@ -169,7 +186,7 @@ export default function QuizPage() {
               {percentage}% Score
             </div>
           </div>
-  
+
           <div className="space-y-2 mb-6">
             <div className="flex justify-between text-gray-700">
               <span>Total Questions:</span>
@@ -183,8 +200,12 @@ export default function QuizPage() {
               <span>Incorrect:</span>
               <span className="font-semibold">{userAnswers.filter(a => !a.isCorrect).length}</span>
             </div>
+            <div className="flex justify-between text-blue-600">
+              <span>Time Taken:</span>
+              <span className="font-semibold">{formatTime(elapsedTime)}</span>
+            </div>
           </div>
-  
+
           <div className="flex gap-3">
             <Button
               variant="contained"
@@ -201,9 +222,9 @@ export default function QuizPage() {
                 textTransform: 'none',
               }}
             >
-              {submitting ? 'Submitting...' : 'Save Results'}
+              {submitting ? 'Submitting...' : 'Save & View Progress'}
             </Button>
-  
+
             <Button
               variant="outlined"
               size="large"
@@ -217,20 +238,15 @@ export default function QuizPage() {
                 fontSize: '16px',
                 fontWeight: 600,
                 textTransform: 'none',
-                '&:hover': {
-                  borderColor: '#4f46e5',
-                  bgcolor: '#f3f4f6',
-                }
               }}
             >
-              🔄 Reattempt Quiz
+              🔄 Reattempt
             </Button>
           </div>
         </div>
       </Container>
     );
   }
-  
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -238,9 +254,12 @@ export default function QuizPage() {
       <Box sx={{ mb: 4 }}>
         <div className="flex justify-between items-center mb-2">
           <h2 className="text-2xl font-bold text-gray-800">{quiz.title}</h2>
-          <span className="text-gray-600 font-medium">
-            Question {currentQuestionIndex + 1} of {quiz.questions.length}
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="text-blue-600 font-semibold">⏱️ {formatTime(elapsedTime)}</span>
+            <span className="text-gray-600 font-medium">
+              Question {currentQuestionIndex + 1} of {quiz.questions.length}
+            </span>
+          </div>
         </div>
         <LinearProgress 
           variant="determinate" 
@@ -258,7 +277,7 @@ export default function QuizPage() {
           </span>
         </div>
         <div>
-          <span className="text-gray-600">Questions Answered:</span>
+          <span className="text-gray-600">Answered:</span>
           <span className="text-xl font-bold text-gray-800 ml-2">
             {userAnswers.length} / {quiz.questions.length}
           </span>

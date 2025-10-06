@@ -10,6 +10,7 @@ interface SavedQuiz {
   title: string;
   pdfSource: string;
   totalQuestions: number;
+  attemptId: string;
   numberOfQuestions: {
     mcq: number;
     saq: number;
@@ -155,13 +156,13 @@ export default function SavedQuizPage() {
                     <button
                       onClick={(e) => handleReattempt(quiz._id, e)}
                       disabled={reattempting === quiz._id}
-                      className="flex-1 py-2 px-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all disabled:opacity-50"
+                      className="flex-1 py-2 px-4 cursor-pointer bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all disabled:opacity-50"
                     >
                       {reattempting === quiz._id ? 'Resetting...' : '🔄 Reattempt'}
                     </button>
                     <button
-                      onClick={() => router.push(`/quiz/${quiz._id}/results`)}
-                      className="flex-1 py-2 px-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all"
+                      onClick={() => router.push(`/attempt/${quiz.attemptId}/`)}
+                      className="flex-1 py-2 cursor-pointer px-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all"
                     >
                       📊 View Results
                     </button>
@@ -169,7 +170,7 @@ export default function SavedQuizPage() {
                 ) : (
                   <button
                     onClick={() => router.push(`/quiz/${quiz._id}`)}
-                    className="w-full py-2 px-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all"
+                    className="w-full py-2 px-4 cursor-pointer bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all"
                   >
                     ▶️ Start Quiz
                   </button>

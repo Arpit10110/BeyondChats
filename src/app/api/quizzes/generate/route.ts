@@ -350,6 +350,7 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no code 
 4. For LAQs: Require detailed multi-paragraph answers
 5. Include clear explanations for learning
 6. Return ONLY valid JSON, no markdown formatting
+7. if user give random pdf or pdf which is not valid for quiz then return error
 
 Generate the quiz now.`;
 }

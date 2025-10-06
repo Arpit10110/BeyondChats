@@ -5,6 +5,7 @@ export interface ISavedQuiz extends Document {
   userId: string;
   title: string;
   pdfSource: string;
+  attemptId: string;
   numberOfQuestions: {
     mcq: number;
     saq: number;
@@ -22,6 +23,10 @@ const SavedQuizSchema = new Schema<ISavedQuiz>({
     type: String, 
     required: true,
     index: true 
+  },
+  attemptId: { 
+    type: String, 
+    
   },
   title: { 
     type: String, 
