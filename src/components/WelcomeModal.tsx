@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, TextField, Button, Typography, Box, CircularProgress, Alert } from '@mui/material';
+import { Dialog, DialogContent, TextField, Button, Typography, Box, CircularProgress, Alert, Tabs, Tab } from '@mui/material';
 import axios from 'axios';
 
 interface WelcomeModalProps {
@@ -10,35 +10,37 @@ interface WelcomeModalProps {
 
 export default function WelcomeModal({ onUserRegistered }: WelcomeModalProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [name, setName] = useState('');
+  const [tab, setTab] = useState(0); // 0 = Login, 1 = Signup
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Check if user is already registered
+    const token = localStorage.getItem('token');
     const userId = localStorage.getItem('userId');
     const userName = localStorage.getItem('userName');
 
-    if (!userId || !userName) {
-      // User not registered - show modal
+    if (!token || !userId || !userName) {
       setIsOpen(true);
     } else {
-      // User already registered - notify parent
       onUserRegistered(userId, userName);
     }
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validation
-    if (name.trim() === '') {
-      setError('Please enter your name');
-      return;
-    }
+  const handleChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value });
+    setError('');
+  };
 
-    if (name.trim().length < 2) {
-      setError('Name must be at least 2 characters');
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.email || !formData.password) {
+      setError('Please fill all fields');
       return;
     }
 
@@ -46,38 +48,76 @@ export default function WelcomeModal({ onUserRegistered }: WelcomeModalProps) {
     setError('');
 
     try {
-      const response = await axios.post('/api/users/register', {
-        name: name.trim(),
+      const response = await axios.post('/api/auth/login', {
+        email: formData.email,
+        password: formData.password,
       });
 
       if (response.data.success) {
-        const { userId, userName } = response.data;
-        
-        // Save to localStorage
-        localStorage.setItem('userId', userId);
-        localStorage.setItem('userName', userName);
-        
-        // Trigger navbar update (custom event for same-tab)
+        const { token, user } = response.data;
+
+        localStorage.setItem('token', token);
+        localStorage.setItem('userId', user.userId);
+        localStorage.setItem('userName', user.name);
+
         window.dispatchEvent(new Event('userLoggedIn'));
-        
-        // Notify parent component
-        onUserRegistered(userId, userName);
-        
-        // Close modal
+        onUserRegistered(user.userId, user.name);
         setIsOpen(false);
       }
     } catch (err: any) {
-      console.error('Registration error:', err);
-      setError(err.response?.data?.error || 'Failed to register. Please try again.');
+      console.error('Login error:', err);
+      setError(err.response?.data?.error || 'Failed to login. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.name || !formData.email || !formData.password) {
+      setError('Please fill all fields');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await axios.post('/api/auth/signup', {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (response.data.success) {
+        const { token, user } = response.data;
+
+        localStorage.setItem('token', token);
+        localStorage.setItem('userId', user.userId);
+        localStorage.setItem('userName', user.name);
+
+        window.dispatchEvent(new Event('userLoggedIn'));
+        onUserRegistered(user.userId, user.name);
+        setIsOpen(false);
+      }
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      setError(err.response?.data?.error || 'Failed to create account. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Dialog 
-      open={isOpen} 
-      maxWidth="sm" 
+    <Dialog
+      open={isOpen}
+      maxWidth="sm"
       fullWidth
       disableEscapeKeyDown
       sx={{
@@ -93,67 +133,145 @@ export default function WelcomeModal({ onUserRegistered }: WelcomeModalProps) {
             Welcome to QuizMind! 🎓
           </Typography>
           <Typography variant="body1" sx={{ color: '#6b7280' }}>
-            Let's get started by knowing your name
+            {tab === 0 ? 'Login to continue' : 'Create your account'}
           </Typography>
         </Box>
 
-        <form onSubmit={handleSubmit}>
-          <TextField
-            fullWidth
-            label="Your Name"
-            variant="outlined"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={isLoading}
-            autoFocus
-            placeholder="Enter your name"
-            sx={{
-              mb: 2,
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '12px',
-              }
-            }}
-          />
+        {/* Tabs */}
+        <Tabs
+          value={tab}
+          onChange={(_, newValue) => {
+            setTab(newValue);
+            setError('');
+          }}
+          centered
+          sx={{ mb: 3 }}
+        >
+          <Tab label="Login" />
+          <Tab label="Sign Up" />
+        </Tabs>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }}>
-              {error}
-            </Alert>
-          )}
+        {/* Login Form */}
+        {tab === 0 && (
+          <form onSubmit={handleLogin}>
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              variant="outlined"
+              value={formData.email}
+              onChange={(e) => handleChange('email', e.target.value)}
+              disabled={isLoading}
+              autoFocus
+              sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+            />
 
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            disabled={isLoading}
-            sx={{
-              py: 1.5,
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-              fontSize: '16px',
-              fontWeight: 600,
-              textTransform: 'none',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-              },
-              '&:disabled': {
-                background: '#d1d5db',
-              }
-            }}
-          >
-            {isLoading ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CircularProgress size={20} sx={{ color: 'white' }} />
-                <span>Creating account...</span>
-              </Box>
-            ) : (
-              'Get Started'
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              variant="outlined"
+              value={formData.password}
+              onChange={(e) => handleChange('password', e.target.value)}
+              disabled={isLoading}
+              sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+            />
+
+            {error && (
+              <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }}>
+                {error}
+              </Alert>
             )}
-          </Button>
-        </form>
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              disabled={isLoading}
+              sx={{
+                py: 1.5,
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                fontSize: '16px',
+                fontWeight: 600,
+                textTransform: 'none',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                },
+              }}
+            >
+              {isLoading ? <CircularProgress size={24} sx={{ color: 'white' }} /> : 'Login'}
+            </Button>
+          </form>
+        )}
+
+        {/* Signup Form */}
+        {tab === 1 && (
+          <form onSubmit={handleSignup}>
+            <TextField
+              fullWidth
+              label="Your Name"
+              variant="outlined"
+              value={formData.name}
+              onChange={(e) => handleChange('name', e.target.value)}
+              disabled={isLoading}
+              autoFocus
+              sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+            />
+
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              variant="outlined"
+              value={formData.email}
+              onChange={(e) => handleChange('email', e.target.value)}
+              disabled={isLoading}
+              sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+            />
+
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              variant="outlined"
+              value={formData.password}
+              onChange={(e) => handleChange('password', e.target.value)}
+              disabled={isLoading}
+              helperText="Minimum 6 characters"
+              sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+            />
+
+            {error && (
+              <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }}>
+                {error}
+              </Alert>
+            )}
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              disabled={isLoading}
+              sx={{
+                py: 1.5,
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                fontSize: '16px',
+                fontWeight: 600,
+                textTransform: 'none',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                },
+              }}
+            >
+              {isLoading ? <CircularProgress size={24} sx={{ color: 'white' }} /> : 'Create Account'}
+            </Button>
+          </form>
+        )}
 
         <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 3, color: '#9ca3af' }}>
-          Your data is stored securely and used only for tracking your learning progress
+          Your data is secure and encrypted
         </Typography>
       </DialogContent>
     </Dialog>

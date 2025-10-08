@@ -29,19 +29,19 @@ export default function Navbar() {
   const isChatPage = pathname?.startsWith('/chat');
 
   const handleLogout = () => {
-    // Clear localStorage
+    // Clear ALL auth data
+    localStorage.removeItem('token');
     localStorage.removeItem('userId');
     localStorage.removeItem('userName');
     
-    // Trigger storage event for other tabs
+    // Trigger storage event
     window.dispatchEvent(new Event('storage'));
     
-    // Redirect to home
+    // Redirect and reload
     router.push('/');
-    
-    // Reload page to show welcome modal
     window.location.reload();
   };
+  
 
   const allNavLinks: NavLink[] = [
     { title: 'Home', path: '/', icon: <HomeIcon /> },
