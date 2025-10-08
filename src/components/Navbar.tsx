@@ -8,32 +8,48 @@ import CloseIcon from '@mui/icons-material/Close';
 import HomeIcon from '@mui/icons-material/Home';
 import QuizIcon from '@mui/icons-material/Quiz';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import PersonIcon from '@mui/icons-material/Person';
 import ChatIcon from '@mui/icons-material/Chat';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface NavLink {
   title: string;
-  path: string;
+  path?: string;
   icon: React.ReactElement;
   requiresAuth?: boolean;
+  onClick?: () => void;
 }
-
-const allNavLinks: NavLink[] = [
-  { title: 'Home', path: '/', icon: <HomeIcon /> },
-  { title: 'Quizzes', path: '/quizzes', icon: <QuizIcon /> },
-  { title: 'Progress', path: '/progress', icon: <TrendingUpIcon /> },
-  { title: 'Chat', path: '/chat', icon: <ChatIcon /> },
-  { title: 'LogOut', path: '/profile', icon: <LogoutIcon />, requiresAuth: true },
-];
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navLinks, setNavLinks] = useState<NavLink[]>([]);
   
   const isChatPage = pathname?.startsWith('/chat');
+
+  const handleLogout = () => {
+    // Clear localStorage
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userName');
+    
+    // Trigger storage event for other tabs
+    window.dispatchEvent(new Event('storage'));
+    
+    // Redirect to home
+    router.push('/');
+    
+    // Reload page to show welcome modal
+    window.location.reload();
+  };
+
+  const allNavLinks: NavLink[] = [
+    { title: 'Home', path: '/', icon: <HomeIcon /> },
+    { title: 'Quizzes', path: '/quizzes', icon: <QuizIcon /> },
+    { title: 'Progress', path: '/progress', icon: <TrendingUpIcon /> },
+    { title: 'Chat', path: '/chat', icon: <ChatIcon /> },
+    { title: 'Logout', icon: <LogoutIcon />, requiresAuth: true, onClick: handleLogout },
+  ];
 
   const updateNavLinks = () => {
     const userId = localStorage.getItem('userId');
@@ -68,7 +84,6 @@ export default function Navbar() {
 
   const drawer = (
     <Box
-      onClick={handleDrawerToggle}
       sx={{
         width: 250,
         height: '100%',
@@ -85,21 +100,42 @@ export default function Navbar() {
       <List>
         {navLinks.map((link) => (
           <ListItem key={link.title} disablePadding>
-            <ListItemButton
-              component={Link}
-              href={link.path}
-              sx={{
-                color: 'white',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                },
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                {link.icon}
-                <ListItemText primary={link.title} />
-              </Box>
-            </ListItemButton>
+            {link.onClick ? (
+              <ListItemButton
+                onClick={() => {
+                  link.onClick!();
+                  handleDrawerToggle();
+                }}
+                sx={{
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {link.icon}
+                  <ListItemText primary={link.title} />
+                </Box>
+              </ListItemButton>
+            ) : (
+              <ListItemButton
+                component={Link}
+                href={link.path!}
+                onClick={handleDrawerToggle}
+                sx={{
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {link.icon}
+                  <ListItemText primary={link.title} />
+                </Box>
+              </ListItemButton>
+            )}
           </ListItem>
         ))}
       </List>
@@ -156,12 +192,10 @@ export default function Navbar() {
               }}
             >
               {navLinks.map((link) => (
-                <Link
-                  key={link.title}
-                  href={link.path}
-                  style={{ textDecoration: 'none' }}
-                >
+                link.onClick ? (
                   <Box
+                    key={link.title}
+                    onClick={link.onClick}
                     sx={{
                       display: 'flex',
                       alignItems: 'center',
@@ -169,14 +203,13 @@ export default function Navbar() {
                       px: 2.5,
                       py: 1,
                       borderRadius: '12px',
-                      color: '#4b5563',
+                      color: '#ef4444',
                       fontWeight: 500,
                       fontSize: '15px',
                       transition: 'all 0.3s ease',
                       cursor: 'pointer',
                       '&:hover': {
-                        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
-                        color: '#6366f1',
+                        background: 'rgba(239, 68, 68, 0.1)',
                         transform: 'translateY(-2px)',
                       },
                     }}
@@ -184,7 +217,37 @@ export default function Navbar() {
                     {link.icon}
                     <span>{link.title}</span>
                   </Box>
-                </Link>
+                ) : (
+                  <Link
+                    key={link.title}
+                    href={link.path!}
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        px: 2.5,
+                        py: 1,
+                        borderRadius: '12px',
+                        color: '#4b5563',
+                        fontWeight: 500,
+                        fontSize: '15px',
+                        transition: 'all 0.3s ease',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
+                          color: '#6366f1',
+                          transform: 'translateY(-2px)',
+                        },
+                      }}
+                    >
+                      {link.icon}
+                      <span>{link.title}</span>
+                    </Box>
+                  </Link>
+                )
               ))}
             </Box>
 
