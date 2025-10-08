@@ -9,6 +9,9 @@ import HomeIcon from '@mui/icons-material/Home';
 import QuizIcon from '@mui/icons-material/Quiz';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import PersonIcon from '@mui/icons-material/Person';
+import ChatIcon from '@mui/icons-material/Chat';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { usePathname } from 'next/navigation';
 
 interface NavLink {
   title: string;
@@ -18,40 +21,39 @@ interface NavLink {
 }
 
 const allNavLinks: NavLink[] = [
-  { title: 'Home', path: '/', icon: <HomeIcon /> }, // No auth required
-  { title: 'Quizzes', path: '/quizzes', icon: <QuizIcon /> }, // No auth required
-  { title: 'Progress', path: '/progress', icon: <TrendingUpIcon /> }, // No auth required
-  { title: 'Profile', path: '/profile', icon: <PersonIcon />, requiresAuth: true }, // Auth required
+  { title: 'Home', path: '/', icon: <HomeIcon /> },
+  { title: 'Quizzes', path: '/quizzes', icon: <QuizIcon /> },
+  { title: 'Progress', path: '/progress', icon: <TrendingUpIcon /> },
+  { title: 'Chat', path: '/chat', icon: <ChatIcon /> },
+  { title: 'LogOut', path: '/profile', icon: <LogoutIcon />, requiresAuth: true },
 ];
 
 export default function Navbar() {
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navLinks, setNavLinks] = useState<NavLink[]>([]);
+  
+  const isChatPage = pathname?.startsWith('/chat');
 
   const updateNavLinks = () => {
-    // Check if user is logged in
     const userId = localStorage.getItem('userId');
     const loggedIn = !!userId;
 
-    // Filter nav links based on auth status
     if (loggedIn) {
-      setNavLinks(allNavLinks); // Show all links including Profile
+      setNavLinks(allNavLinks);
     } else {
-      setNavLinks(allNavLinks.filter(link => !link.requiresAuth)); // Hide only Profile
+      setNavLinks(allNavLinks.filter(link => !link.requiresAuth));
     }
   };
 
   useEffect(() => {
-    // Initial check
     updateNavLinks();
 
-    // Listen for storage changes (when user logs in)
     const handleStorageChange = () => {
       updateNavLinks();
     };
 
     window.addEventListener('storage', handleStorageChange);
-    // Custom event for same-tab updates
     window.addEventListener('userLoggedIn', handleStorageChange);
 
     return () => {
@@ -64,7 +66,6 @@ export default function Navbar() {
     setMobileOpen(!mobileOpen);
   };
 
-  // Mobile Drawer
   const drawer = (
     <Box
       onClick={handleDrawerToggle}
@@ -107,9 +108,18 @@ export default function Navbar() {
 
   return (
     <>
+      <style jsx global>{`
+        @media (max-width: 768px) {
+          .navbar-hide-on-chat {
+            display: ${isChatPage ? 'none' : 'block'} !important;
+          }
+        }
+      `}</style>
+
       <AppBar
         position="sticky"
         elevation={0}
+        className="navbar-hide-on-chat"
         sx={{
           background: 'rgba(255, 255, 255, 0.7)',
           backdropFilter: 'blur(10px)',
